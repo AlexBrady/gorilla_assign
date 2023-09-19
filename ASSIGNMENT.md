@@ -9,7 +9,7 @@ deployment. The integration tests should prove that everything works as expected
 
 ## Getting started
 
-To get started you'll need Python 3.10 (we recommend installing it via
+To get started you'll need Python 3.11 (we recommend installing it via
 [pyenv](https://github.com/pyenv/pyenv)), and the
 [Poetry](https://python-poetry.org/docs/#installation) package manager.
 

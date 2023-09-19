@@ -2,7 +2,7 @@ import random
 import string
 import time
 from datetime import date, timedelta
-from typing import Dict, List, Literal, Optional
+from typing import Literal, Optional
 from urllib.parse import parse_qs
 
 from aws_lambda_typing.events import APIGatewayProxyEventV2
@@ -10,7 +10,7 @@ from aws_lambda_typing.events import APIGatewayProxyEventV2
 from metr.models import Meter
 
 
-def generate_meters(count: int) -> List[Meter]:
+def generate_meters(count: int) -> list[Meter]:
     return [
         Meter(
             meter_id=i,
@@ -29,7 +29,7 @@ def generate_meters(count: int) -> List[Meter]:
 def generate_api_gateway_proxy_event_v2(
     method: Literal["GET", "POST", "PUT", "PATCH", "DELETE"],
     path: str,
-    path_params: Optional[Dict[str, str]] = None,
+    path_params: Optional[dict[str, str]] = None,
     query_string: str = "",
     body: str = "",
 ) -> APIGatewayProxyEventV2:

@@ -16,9 +16,9 @@ def generate_meters(count: int) -> list[Meter]:
             meter_id=i,
             external_reference="".join(random.sample(string.printable, 10)),
             supply_start_date=date.today() + timedelta(days=i),
-            supply_end_date=date.today() + timedelta(days=10 * i)
-            if random.random() < 0.5
-            else None,
+            supply_end_date=(
+                date.today() + timedelta(days=10 * i) if random.random() < 0.5 else None
+            ),
             enabled=random.random() < 0.5,
             annual_quantity=random.random() * 100_000,
         )

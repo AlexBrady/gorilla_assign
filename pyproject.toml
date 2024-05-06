@@ -7,16 +7,16 @@ authors = ["Gorilla <hello@gorilla.co>"]
 [tool.poetry.dependencies]
 python = "^3.11"
 
-aws-lambda-typing = "^2.13"
-SQLAlchemy = "^2.0.21"
+aws-lambda-typing = "^2.20"
+SQLAlchemy = "^2.0.30"
 
 [tool.poetry.dev-dependencies]
-black = "^22.6"
-coverage = "^6.1"
-flake8 = "^4.0"
-isort = "^5.10"
-mypy = "^1.5.1"
-pytest = "^7.1"
+black = "^24.4"
+coverage = "^7.5.0"
+flake8 = "^7.0.0"
+isort = "^5.13.0"
+mypy = "^1.10.0"
+pytest = "^8.2.0"
 
 
 [build-system]

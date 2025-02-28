@@ -9,6 +9,8 @@ python = "^3.11"
 
 aws-lambda-typing = "^2.20"
 SQLAlchemy = "^2.0.30"
+SQLAlchemy-Utils = "^0.41.2"
+dicttoxml = "^1.7.16"
 
 [tool.poetry.dev-dependencies]
 black = "^24.4"

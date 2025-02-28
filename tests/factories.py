@@ -32,6 +32,7 @@ def generate_api_gateway_proxy_event_v2(
     path_params: Optional[dict[str, str]] = None,
     query_string: str = "",
     body: str = "",
+    headers: Optional[dict[str, str]] = {},
 ) -> APIGatewayProxyEventV2:
     return APIGatewayProxyEventV2(
         version="2.0",
@@ -39,7 +40,7 @@ def generate_api_gateway_proxy_event_v2(
         rawPath=path,
         rawQueryString=query_string,
         cookies=[],
-        headers={},
+        headers=headers,
         queryStringParameters={
             p: ",".join(v) for p, v in parse_qs(query_string).items()
         },

@@ -38,3 +38,32 @@ def get_meters(
         }
     finally:
         session.close()
+
+
+def get_meter(
+    event: APIGatewayProxyEventV2, context: Context
+) -> APIGatewayProxyResponseV2:
+    """
+    Fetch a meter object from the database.
+    """
+    try:
+        print(event)
+        session: Session = DBSession()
+        service = MeterService(
+            session=session,
+            base_url=event.get("rawPath"),
+            headers=event.get("headers", {"accept", "application/json"}),
+        )
+        meter = service.get_meter(event.get("pathParameters")["meter_id"])
+
+        return meter
+
+    # TODO: Add exceptions.py file to handle multiple re-usable exceptions
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "headers": {"content-type": "application/json"},
+            "body": json.dumps({"error": "Internal Server Error", "message": str(e)}),
+        }
+    finally:
+        session.close()

@@ -1,14 +1,16 @@
 """Service module for meters endpoints."""
 
+import csv
+import io
 import json
-from typing import Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlencode
 
 import dicttoxml
 
+from metr.api.meters.enums import ContentTypeEnum
 from metr.api.meters.persistors import MeterPersistor
 from metr.database import Session
-from metr.models import Meter
 
 
 class MeterService:
@@ -24,7 +26,7 @@ class MeterService:
         """Initialize."""
         self.query_params = query_params
         self.base_url = base_url
-        self.headers = headers
+        self.headers = headers if headers else {"accept": "application/json"}
         self.meter_persistor = MeterPersistor(session)
 
     def _assign_next_page_hyperlink(
@@ -43,39 +45,28 @@ class MeterService:
 
     def _format_response_data(
         self,
-        meters: List[Meter],
-        meters_count: int,
-        next_page: Optional[str] = None,
+        body: Union[List[Dict[str, Any]], Dict[str, Any]],
+        content_type: ContentTypeEnum,
     ):
-        """Serialize the DB Objects for JSON use."""
-        meters_data = [
-            {
-                "meter_id": meter.meter_id,
-                "external_reference": meter.external_reference,
-                "supply_start_date": meter.supply_start_date.isoformat(),
-                "supply_end_date": (
-                    meter.supply_end_date.isoformat() if meter.supply_end_date else None
-                ),
-                "enabled": meter.enabled,
-                "annual_quantity": meter.annual_quantity,
-            }
-            for meter in meters
-        ]
-
+        """Format the response data based on the Content Type."""
         response_data = {
             "statusCode": 200,
             "headers": {"content-type": "application/json"},
-            "body": json.dumps(
-                {
-                    "total": meters_count,
-                    "meters": meters_data,
-                    "next_page": next_page,
-                }
-            ),
+            "body": json.dumps(body),
         }
 
-        if "xml" in self.headers.get("accept", "application/json").lower():
+        if content_type == ContentTypeEnum.xml.value:
             response_data = dicttoxml.dicttoxml(response_data)
+        elif content_type == ContentTypeEnum.csv.value:
+            output = io.StringIO()
+            csv_writer = csv.DictWriter(output, fieldnames=body["meters"][0].keys())
+            csv_writer.writeheader()
+            csv_writer.writerows(body["meters"])
+            response_data = {
+                "statusCode": 200,
+                "headers": {"content-type": "text/csv"},
+                "body": output.getvalue(),
+            }
 
         return response_data
 
@@ -91,8 +82,24 @@ class MeterService:
             meters_count=meters_count,
         )
 
+        body = {
+            "total": meters_count,
+            "meters": [meter.as_dict() for meter in meters],
+            "next_page": next_page,
+        }
+
         response_data = self._format_response_data(
-            meters=meters, meters_count=meters_count, next_page=next_page
+            body=body, content_type=self.headers.get("accept")
         )
 
         return response_data
+
+    def get_meter(self, meter_id: int):
+        """
+        Get a meter by it's PK.
+        """
+        meter = self.meter_persistor.get_meter(meter_id)
+        if not meter:
+            raise Exception
+
+        return self._format_response_data(meter_id, self.headers.get("accept"))

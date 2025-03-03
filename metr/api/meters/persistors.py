@@ -44,6 +44,7 @@ class MeterPersistor:
         if supply_start_date is not None:
             query = query.filter(Meter.supply_start_date >= Meter.supply_start_date)
 
+        # This might be null - so maybe think about removing
         if supply_end_date is not None:
             query = query.filter(Meter.supply_end_date >= Meter.supply_end_date)
 
@@ -86,3 +87,7 @@ class MeterPersistor:
             query = query.filter(Meter.annual_quantity == annual_quantity)
 
         return query.scalar()
+
+    def get_meter(self, meter_id: int):
+        """Get a Meter object by it's ID."""
+        return self.session.query(Meter.meter_id == meter_id).first()

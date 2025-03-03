@@ -5,7 +5,13 @@ import io
 import json
 import xml.etree.ElementTree as ET
 
-from metr.api.meters.views import get_meter, get_meters, post_meters
+from metr.api.meters.views import (
+    delete_meter,
+    get_meter,
+    get_meters,
+    post_meters,
+    put_meter,
+)
 from tests.factories import generate_api_gateway_proxy_event_v2
 
 
@@ -104,71 +110,70 @@ def test_post_meters_smoke(fresh_db, lambda_context):
     assert json.loads(response["body"])
 
 
-# def test_put_meter_smoke(db_meters, lambda_context):
-#     meter_id = db_meters[0].meter_id
+def test_put_meter_smoke(db_meters, lambda_context):
+    meter_id = db_meters[0].meter_id
 
-#     event = generate_api_gateway_proxy_event_v2(
-#         "PUT",
-#         f"/meters/{meter_id}",
-#         body=json.dumps(
-#             {
-#                 "meter_id": meter_id,
-#                 "external_reference": "123XYZ",
-#                 "supply_start_date": "2021-01-01",
-#                 "supply_end_date": None,
-#                 "enabled": True,
-#                 "annual_quantity": 123.45,
-#             }
-#         ),
-#     )
-#     response = api.put_meter(event, lambda_context)
+    event = generate_api_gateway_proxy_event_v2(
+        "PUT",
+        f"/meters/{meter_id}",
+        body=json.dumps(
+            {
+                "meter_id": meter_id,
+                "external_reference": "123XYZ",
+                "supply_start_date": "2021-01-01",
+                "supply_end_date": None,
+                "enabled": True,
+                "annual_quantity": 123.45,
+            }
+        ),
+    )
+    response = put_meter(event, lambda_context)
 
-#     assert 200 <= response["statusCode"] < 300
-#     assert "json" in response["headers"]["content-type"]
-#     assert json.loads(response["body"])
-
-
-# def test_put_meter_not_found(fresh_db, lambda_context):
-#     meter_id = 999
-
-#     event = generate_api_gateway_proxy_event_v2(
-#         "PUT",
-#         f"/meters/{meter_id}",
-#         body=json.dumps(
-#             {
-#                 "meter_id": meter_id,
-#                 "external_reference": "123XYZ",
-#                 "supply_start_date": "2021-01-01",
-#                 "supply_end_date": None,
-#                 "enabled": True,
-#                 "annual_quantity": 123.45,
-#             }
-#         ),
-#     )
-#     response = api.put_meter(event, lambda_context)
-
-#     assert 400 <= response["statusCode"] < 500
-#     assert "json" in response["headers"]["content-type"]
-#     assert json.loads(response["body"])
+    assert 200 <= response["statusCode"] < 300
+    assert "json" in response["headers"]["content-type"]
+    assert json.loads(response["body"])
 
 
-# def test_delete_meter_smoke(db_meters, lambda_context):
-#     meter_id = db_meters[-1].meter_id
+def test_put_meter_not_found(fresh_db, lambda_context):
+    meter_id = 999
 
-#     event = generate_api_gateway_proxy_event_v2(
-#         "DELETE", f"/meters/{meter_id}", {"meter_id": str(meter_id)}
-#     )
-#     response = api.delete_meter(event, lambda_context)
+    event = generate_api_gateway_proxy_event_v2(
+        "PUT",
+        f"/meters/{meter_id}",
+        body=json.dumps(
+            {
+                "meter_id": meter_id,
+                "external_reference": "123XYZ",
+                "supply_start_date": "2021-01-01",
+                "supply_end_date": None,
+                "enabled": True,
+                "annual_quantity": 123.45,
+            }
+        ),
+    )
+    response = put_meter(event, lambda_context)
 
-#     assert 200 <= response["statusCode"] < 300
+    assert 400 <= response["statusCode"] < 500
+    assert "json" in response["headers"]["content-type"]
+    assert json.loads(response["body"])
 
 
-# def test_delete_meter_not_found(fresh_db, lambda_context):
-#     meter_id = 999
+def test_delete_meter_smoke(db_meters, lambda_context):
+    meter_id = db_meters[-1].meter_id
 
-#     event = generate_api_gateway_proxy_event_v2(
-#         "DELETE", f"/meters/{meter_id}", {"meter_id": str(meter_id)}
-#     )
-#     response = api.delete_meter(event, lambda_context)
+    event = generate_api_gateway_proxy_event_v2(
+        "DELETE", f"/meters/{meter_id}", {"meter_id": str(meter_id)}
+    )
+    response = delete_meter(event, lambda_context)
+    assert 200 <= response["statusCode"] < 300
 
-#     assert 400 <= response["statusCode"] < 500
+
+def test_delete_meter_not_found(fresh_db, lambda_context):
+    meter_id = 999
+
+    event = generate_api_gateway_proxy_event_v2(
+        "DELETE", f"/meters/{meter_id}", {"meter_id": str(meter_id)}
+    )
+    response = delete_meter(event, lambda_context)
+
+    assert 400 <= response["statusCode"] < 500

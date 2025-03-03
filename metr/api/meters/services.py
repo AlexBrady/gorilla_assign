@@ -74,6 +74,14 @@ class MeterService:
 
         return response_data
 
+    def _get_meter_by_id(self, meter_id: int) -> Meter:
+        """Return a Meter object by its ID."""
+        meter = self.meter_persistor.get_meter(meter_id)
+        if not meter:
+            raise BadRequestException(f"Meter not found. ID: {meter_id}")
+
+        return meter
+
     def add_meter(self, meter_data: Dict[str, Union[int, bool, float, str]]):
         """
         Add a meter to the DB.
@@ -139,8 +147,37 @@ class MeterService:
         """
         Get a meter by it's PK.
         """
-        meter = self.meter_persistor.get_meter(meter_id)
-        if not meter:
-            raise BadRequestException(f"Meter not found. ID: {meter_id}")
-
+        meter = self._get_meter_by_id(meter_id)
         return self._format_response_data(meter.as_dict(), self.headers.get("accept"))
+
+    def update_meter(
+        self, meter_id: int, meter_data: Dict[str, Union[int, bool, float, str]]
+    ):
+        """
+        Update a meter.
+        """
+        meter_id = meter_data.get("meter_id")
+        if int(self.base_url.split("/", 2)[2]) != meter_id:
+            raise BadRequestException(
+                "Meter ID in the body does not match the meter to be updated."
+            )
+        meter = self._get_meter_by_id(meter_id)
+
+        # Update only provided fields
+        for key, value in meter_data.items():
+            if hasattr(meter, key):
+                if key in ["supply_start_date", "supply_end_date"] and value:
+                    value = datetime.fromisoformat(value)
+                setattr(meter, key, value)
+
+        self.meter_persistor.update_meter(meter)
+
+        return self._format_response_data(
+            body=meter.as_dict(),
+            content_type=self.headers.get("accept"),
+        )
+
+    def delete_meter(self, meter_id: str):
+        """Delete a Meter object by its ID."""
+        if not self.meter_persistor.delete_meter(meter_id):
+            raise BadRequestException("Meter does not exist.")

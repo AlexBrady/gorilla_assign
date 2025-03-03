@@ -58,7 +58,6 @@ def get_meters(
 
         return meters
 
-    # TODO: Add exceptions.py file to handle multiple re-usable exceptions
     except Exception as e:
         return {
             "statusCode": 500,
@@ -82,7 +81,7 @@ def get_meter(
             base_url=event.get("rawPath"),
             headers=event.get("headers", {"accept", "application/json"}),
         )
-        meter = service.get_meter(event.get("pathParameters")["meter_id"])
+        meter = service.get_meter(event.get("pathParameters").get("meter_id"))
 
         return meter
 
@@ -98,5 +97,76 @@ def get_meter(
             "headers": {"content-type": "application/json"},
             "body": json.dumps({"error": "Internal Server Error", "message": str(e)}),
         }
+    finally:
+        session.close()
+
+
+def put_meter(
+    event: APIGatewayProxyEventV2, context: Context
+) -> APIGatewayProxyResponseV2:
+    """Update a meter entry partially or fully."""
+    try:
+        session: Session = DBSession()
+        service = MeterService(
+            session=session,
+            base_url=event.get("rawPath"),
+            headers=event.get("headers", {"accept", "application/json"}),
+        )
+
+        meter = service.update_meter(
+            meter_id=event.get("pathParameters").get("meter_id"),
+            meter_data=json.loads(event.get("body")),
+        )
+
+        return meter
+    except BadRequestException as e:
+        return {
+            "statusCode": e.status_code,
+            "headers": {"content-type": "application/json"},
+            "body": json.dumps(e.to_dict()),
+        }
+
+    except Exception as e:
+        session.rollback()
+        return {
+            "statusCode": 500,
+            "body": json.dumps({"error": "Internal Server Error", "message": str(e)}),
+        }
+
+    finally:
+        session.close()
+
+
+def delete_meter(
+    event: APIGatewayProxyEventV2, context: Context
+) -> APIGatewayProxyResponseV2:
+    """Update a meter entry partially or fully."""
+    try:
+        session: Session = DBSession()
+        service = MeterService(
+            session=session,
+            base_url=event.get("rawPath"),
+            headers=event.get("headers", {"accept", "application/json"}),
+        )
+
+        service.delete_meter(
+            meter_id=event.get("pathParameters").get("meter_id"),
+        )
+
+        return {"statusCode": 204}
+
+    except BadRequestException as e:
+        return {
+            "statusCode": e.status_code,
+            "headers": {"content-type": "application/json"},
+            "body": json.dumps(e.to_dict()),
+        }
+
+    except Exception as e:
+        return {
+            "statusCode": 500,
+            "body": json.dumps({"error": "Internal Server Error", "message": str(e)}),
+        }
+
     finally:
         session.close()

@@ -97,3 +97,15 @@ class MeterPersistor:
         query = self.session.query(Meter).filter_by(meter_id=meter_id)
 
         return query.first()
+
+    def update_meter(self, meter: Meter):
+        """Update a Meter object."""
+        self.session.commit()
+        self.session.refresh(meter)
+
+    def delete_meter(self, meter_id: int):
+        """Delete a Meter object."""
+        count = self.session.query(Meter).filter_by(meter_id=meter_id).delete()
+
+        self.session.commit()
+        return count > 0

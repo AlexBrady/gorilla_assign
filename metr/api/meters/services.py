@@ -3,14 +3,17 @@
 import csv
 import io
 import json
+from datetime import datetime
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlencode
 
 import dicttoxml
 
 from metr.api.meters.enums import ContentTypeEnum
+from metr.api.meters.exceptions import BadRequestException
 from metr.api.meters.persistors import MeterPersistor
 from metr.database import Session
+from metr.models import Meter
 
 
 class MeterService:
@@ -47,10 +50,11 @@ class MeterService:
         self,
         body: Union[List[Dict[str, Any]], Dict[str, Any]],
         content_type: ContentTypeEnum,
+        status_code: Optional[int] = 200,
     ):
         """Format the response data based on the Content Type."""
         response_data = {
-            "statusCode": 200,
+            "statusCode": status_code,
             "headers": {"content-type": "application/json"},
             "body": json.dumps(body),
         }
@@ -63,12 +67,49 @@ class MeterService:
             csv_writer.writeheader()
             csv_writer.writerows(body["meters"])
             response_data = {
-                "statusCode": 200,
+                "statusCode": status_code,
                 "headers": {"content-type": "text/csv"},
                 "body": output.getvalue(),
             }
 
         return response_data
+
+    def add_meter(self, meter_data: Dict[str, Union[int, bool, float, str]]):
+        """
+        Add a meter to the DB.
+        """
+        required_fields = {
+            "meter_id",
+            "external_reference",
+            "supply_start_date",
+            "enabled",
+            "annual_quantity",
+        }
+        if not required_fields.issubset(meter_data.keys()):
+            raise BadRequestException(
+                f"Missing required fields: {required_fields - set(meter_data.keys())}"
+            )
+
+        meter = Meter(
+            external_reference=meter_data["external_reference"],
+            supply_start_date=datetime.strptime(
+                meter_data["supply_start_date"], "%Y-%m-%d"
+            ),
+            supply_end_date=(
+                datetime.strptime(meter_data["supply_end_date"], "%Y-%m-%d")
+                if meter_data["supply_end_date"]
+                else None
+            ),
+            enabled=bool(meter_data["enabled"]),
+            annual_quantity=float(meter_data["annual_quantity"]),
+        )
+        self.meter_persistor.add_meter(meter)
+
+        return self._format_response_data(
+            body=meter.as_dict(),
+            content_type=self.headers.get("accept"),
+            status_code=201,
+        )
 
     def get_meters(self):
         """
@@ -100,6 +141,6 @@ class MeterService:
         """
         meter = self.meter_persistor.get_meter(meter_id)
         if not meter:
-            raise Exception
+            raise BadRequestException(f"Meter not found. ID: {meter_id}")
 
-        return self._format_response_data(meter_id, self.headers.get("accept"))
+        return self._format_response_data(meter.as_dict(), self.headers.get("accept"))

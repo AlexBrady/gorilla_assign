@@ -17,6 +17,10 @@ class MeterPersistor:
         """Initliaze."""
         self.session = session
 
+    def add_meter(self, meter: Meter):
+        """Add a new Meter to the database."""
+        self.session.add(meter)
+
     def get_meters(
         self,
         meter_id: Optional[int] = None,
@@ -90,4 +94,6 @@ class MeterPersistor:
 
     def get_meter(self, meter_id: int):
         """Get a Meter object by it's ID."""
-        return self.session.query(Meter.meter_id == meter_id).first()
+        query = self.session.query(Meter).filter_by(meter_id=meter_id)
+
+        return query.first()

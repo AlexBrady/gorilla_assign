@@ -5,7 +5,7 @@ import io
 import json
 import xml.etree.ElementTree as ET
 
-from metr.api.meters.views import get_meter, get_meters
+from metr.api.meters.views import get_meter, get_meters, post_meters
 from tests.factories import generate_api_gateway_proxy_event_v2
 
 
@@ -70,38 +70,38 @@ def test_get_meter_smoke(db_meters, lambda_context):
     assert json.loads(response["body"])
 
 
-# def test_get_meter_not_found(fresh_db, lambda_context):
-#     meter_id = 999
-#     event = generate_api_gateway_proxy_event_v2(
-#         "GET", f"/meters/{meter_id}", {"meter_id": str(meter_id)}
-#     )
-#     response = api.get_meter(event, lambda_context)
+def test_get_meter_not_found(fresh_db, lambda_context):
+    meter_id = 999
+    event = generate_api_gateway_proxy_event_v2(
+        "GET", f"/meters/{meter_id}", {"meter_id": str(meter_id)}
+    )
+    response = get_meter(event, lambda_context)
 
-#     assert 400 <= response["statusCode"] < 500
-#     assert "json" in response["headers"]["content-type"]
-#     assert json.loads(response["body"])
+    assert 400 <= response["statusCode"] < 500
+    assert "json" in response["headers"]["content-type"]
+    assert json.loads(response["body"])
 
 
-# def test_post_meters_smoke(fresh_db, lambda_context):
-#     event = generate_api_gateway_proxy_event_v2(
-#         "POST",
-#         "/meters",
-#         body=json.dumps(
-#             {
-#                 "meter_id": 1,
-#                 "external_reference": "123XYZ",
-#                 "supply_start_date": "2021-01-01",
-#                 "supply_end_date": None,
-#                 "enabled": True,
-#                 "annual_quantity": 123.45,
-#             }
-#         ),
-#     )
-#     response = api.post_meters(event, lambda_context)
+def test_post_meters_smoke(fresh_db, lambda_context):
+    event = generate_api_gateway_proxy_event_v2(
+        "POST",
+        "/meters",
+        body=json.dumps(
+            {
+                "meter_id": 1,
+                "external_reference": "123XYZ",
+                "supply_start_date": "2021-01-01",
+                "supply_end_date": None,
+                "enabled": True,
+                "annual_quantity": 123.45,
+            }
+        ),
+    )
+    response = post_meters(event, lambda_context)
 
-#     assert 200 <= response["statusCode"] < 300
-#     assert "json" in response["headers"]["content-type"]
-#     assert json.loads(response["body"])
+    assert response["statusCode"] == 201
+    assert "json" in response["headers"]["content-type"]
+    assert json.loads(response["body"])
 
 
 # def test_put_meter_smoke(db_meters, lambda_context):

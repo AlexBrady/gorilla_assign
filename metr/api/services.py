@@ -3,17 +3,18 @@
 import csv
 import io
 import json
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Union
+import logging
+from typing import Any, Dict, Optional, Union
 from urllib.parse import urlencode
 
 import dicttoxml
+from aws_lambda_typing.responses import APIGatewayProxyResponseV2
 
-from metr.api.meters.enums import ContentTypeEnum
-from metr.api.meters.exceptions import BadRequestException
-from metr.api.meters.persistors import MeterPersistor
-from metr.database import Session
-from metr.models import Meter
+from metr.core.exceptions import BadRequestException
+from metr.database.models import Meter
+from metr.api.persistors import MeterPersistor
+
+dicttoxml.LOG.setLevel(logging.ERROR)
 
 
 class MeterService:
@@ -21,16 +22,17 @@ class MeterService:
 
     def __init__(
         self,
-        session: Session,
-        query_params: Optional[Dict[str, Union[int, bool, str, int]]] = None,
-        base_url: Optional[str] = None,
-        headers: Optional[Dict[str, str]] = None,
+        headers: Dict[str, str],
+        base_url: str,
+        query_params: Dict[str, str],
     ):
         """Initialize."""
         self.query_params = query_params
         self.base_url = base_url
-        self.headers = headers if headers else {"accept": "application/json"}
-        self.meter_persistor = MeterPersistor(session)
+        if headers == {}:
+            headers = {"accept": "application/json"}
+        self.headers = headers
+        self.meter_persistor = MeterPersistor()
 
     def _assign_next_page_hyperlink(
         self,
@@ -48,29 +50,25 @@ class MeterService:
 
     def _format_response_data(
         self,
-        body: Union[List[Dict[str, Any]], Dict[str, Any]],
-        content_type: ContentTypeEnum,
-        status_code: Optional[int] = 200,
-    ):
+        body: Dict[str, Any],
+        content_type: str,
+        status_code: int,
+    ) -> APIGatewayProxyResponseV2:
         """Format the response data based on the Content Type."""
-        response_data = {
-            "statusCode": status_code,
-            "headers": {"content-type": "application/json"},
-            "body": json.dumps(body),
-        }
+        response_data = APIGatewayProxyResponseV2(
+            statusCode=status_code,
+            headers={"content-type": content_type},
+            body=json.dumps(body),
+        )
 
-        if content_type == ContentTypeEnum.xml.value:
-            response_data = dicttoxml.dicttoxml(response_data)
-        elif content_type == ContentTypeEnum.csv.value:
+        if content_type == "application/xml":
+            response_data["body"] = dicttoxml.dicttoxml(json.dumps(body))
+        elif content_type == "text/csv":
             output = io.StringIO()
             csv_writer = csv.DictWriter(output, fieldnames=body["meters"][0].keys())
             csv_writer.writeheader()
             csv_writer.writerows(body["meters"])
-            response_data = {
-                "statusCode": status_code,
-                "headers": {"content-type": "text/csv"},
-                "body": output.getvalue(),
-            }
+            response_data["body"] = output.getvalue()
 
         return response_data
 
@@ -82,40 +80,32 @@ class MeterService:
 
         return meter
 
-    def add_meter(self, meter_data: Dict[str, Union[int, bool, float, str]]):
+    def add_meter(
+        self, meter_data: Dict[str, Union[int, bool, float, str]]
+    ) -> APIGatewayProxyResponseV2:
         """
         Add a meter to the DB.
-        """
-        required_fields = {
-            "meter_id",
-            "external_reference",
-            "supply_start_date",
-            "enabled",
-            "annual_quantity",
-        }
-        if not required_fields.issubset(meter_data.keys()):
-            raise BadRequestException(
-                f"Missing required fields: {required_fields - set(meter_data.keys())}"
-            )
 
+        :param meter_data: A dict of the meter data to add.
+        """
         meter = Meter(
             external_reference=meter_data["external_reference"],
-            supply_start_date=datetime.strptime(
-                meter_data["supply_start_date"], "%Y-%m-%d"
-            ),
-            supply_end_date=(
-                datetime.strptime(meter_data["supply_end_date"], "%Y-%m-%d")
-                if meter_data["supply_end_date"]
-                else None
-            ),
+            supply_start_date=meter_data["supply_start_date"],
+            supply_end_date=meter_data["supply_end_date"],
             enabled=bool(meter_data["enabled"]),
             annual_quantity=float(meter_data["annual_quantity"]),
         )
+
+        if self.meter_persistor.does_external_reference_exist(meter.external_reference):
+            raise BadRequestException(
+                "Meter with this external reference already exists."
+            )
+
         self.meter_persistor.add_meter(meter)
 
         return self._format_response_data(
             body=meter.as_dict(),
-            content_type=self.headers.get("accept"),
+            content_type=self.headers["accept"],
             status_code=201,
         )
 
@@ -138,21 +128,24 @@ class MeterService:
         }
 
         response_data = self._format_response_data(
-            body=body, content_type=self.headers.get("accept")
+            body=body, content_type=self.headers["accept"], status_code=200
         )
-
         return response_data
 
-    def get_meter(self, meter_id: int):
+    def get_meter(self, path_parameters: Dict[str, str]):
         """
         Get a meter by it's PK.
         """
-        meter = self._get_meter_by_id(meter_id)
-        return self._format_response_data(meter.as_dict(), self.headers.get("accept"))
+        meter_id = path_parameters.get("meter_id")
+        if not meter_id:
+            raise BadRequestException("Meter ID required.")
 
-    def update_meter(
-        self, meter_id: int, meter_data: Dict[str, Union[int, bool, float, str]]
-    ):
+        meter = self._get_meter_by_id(int(meter_id))
+        return self._format_response_data(
+            meter.as_dict(), self.headers["accept"], status_code=200
+        )
+
+    def update_meter(self, meter_data: Dict[str, Any]):
         """
         Update a meter.
         """
@@ -161,23 +154,30 @@ class MeterService:
             raise BadRequestException(
                 "Meter ID in the body does not match the meter to be updated."
             )
-        meter = self._get_meter_by_id(meter_id)
+        meter = self._get_meter_by_id(int(meter_id))
 
-        # Update only provided fields
         for key, value in meter_data.items():
             if hasattr(meter, key):
-                if key in ["supply_start_date", "supply_end_date"] and value:
-                    value = datetime.fromisoformat(value)
+                if (
+                    key == "external_reference"
+                    and self.meter_persistor.does_external_reference_exist(value)
+                ):
+                    raise BadRequestException(
+                        "Meter with this external reference already exists."
+                    )
                 setattr(meter, key, value)
 
         self.meter_persistor.update_meter(meter)
 
         return self._format_response_data(
-            body=meter.as_dict(),
-            content_type=self.headers.get("accept"),
+            body=meter.as_dict(), content_type=self.headers["accept"], status_code=200
         )
 
-    def delete_meter(self, meter_id: str):
+    def delete_meter(self, path_parameters: Dict[str, str]):
         """Delete a Meter object by its ID."""
-        if not self.meter_persistor.delete_meter(meter_id):
+        meter_id = path_parameters.get("meter_id")
+        if not meter_id:
+            raise BadRequestException("Meter ID required.")
+
+        if not self.meter_persistor.delete_meter(int(meter_id)):
             raise BadRequestException("Meter does not exist.")

@@ -5,11 +5,11 @@ import json
 from aws_lambda_typing.context import Context
 from aws_lambda_typing.events import APIGatewayProxyEventV2
 from aws_lambda_typing.responses import APIGatewayProxyResponseV2
-from sqlalchemy.orm import Session
+from pydantic import ValidationError
 
-from metr.api.meters.exceptions import BadRequestException
-from metr.api.meters.services import MeterService
-from metr.database import Session as DBSession
+from metr.core.exceptions import BadRequestException
+from metr.api.schemas import MeterSchema
+from metr.api.services import MeterService
 
 
 def post_meters(
@@ -19,25 +19,39 @@ def post_meters(
     Add a meter object to the database.
     """
     try:
-        session: Session = DBSession()
         service = MeterService(
-            session=session,
-            base_url=event.get("rawPath"),
-            headers=event.get("headers", {"accept", "application/json"}),
+            base_url=event["rawPath"],
+            headers=event.get("headers", {"accept": "application/json"}),
+            query_params=event.get("queryStringParameters", {}),
         )
-        meter = service.add_meter(json.loads(event.get("body")))
+        meter = MeterSchema(**json.loads(event["body"]))
+        new_meter = service.add_meter(meter.dict())
 
-        return meter
-
-    # TODO: Add exceptions.py file to handle multiple re-usable exceptions
+        return new_meter
+    except BadRequestException as e:
+        return {
+            "statusCode": e.status_code,
+            "headers": {"content-type": "application/json"},
+            "body": json.dumps(e.to_dict()),
+        }
+    except ValidationError as e:
+        return {
+            "statusCode": 400,
+            "headers": {"content-type": "application/json"},
+            "body": json.dumps(
+                {
+                    "error": "Bad Request",
+                    "message": "Validation failed",
+                    "details": e.errors(),
+                }
+            ),
+        }
     except Exception as e:
         return {
             "statusCode": 500,
             "headers": {"content-type": "application/json"},
             "body": json.dumps({"error": "Internal Server Error", "message": str(e)}),
         }
-    finally:
-        session.close()
 
 
 def get_meters(
@@ -47,12 +61,10 @@ def get_meters(
     Fetch all meters from the database with optional filtering and pagination.
     """
     try:
-        session: Session = DBSession()
         service = MeterService(
-            session=session,
-            query_params=event.get("queryStringParameters"),
-            base_url=event.get("rawPath"),
+            base_url=event["rawPath"],
             headers=event.get("headers", {}),
+            query_params=event.get("queryStringParameters", {}),
         )
         meters = service.get_meters()
 
@@ -64,8 +76,6 @@ def get_meters(
             "headers": {"content-type": "application/json"},
             "body": json.dumps({"error": "Internal Server Error", "message": str(e)}),
         }
-    finally:
-        session.close()
 
 
 def get_meter(
@@ -75,13 +85,12 @@ def get_meter(
     Fetch a meter object from the database.
     """
     try:
-        session: Session = DBSession()
         service = MeterService(
-            session=session,
-            base_url=event.get("rawPath"),
-            headers=event.get("headers", {"accept", "application/json"}),
+            base_url=event["rawPath"],
+            headers=event.get("headers", {}),
+            query_params=event.get("queryStringParameters", {}),
         )
-        meter = service.get_meter(event.get("pathParameters").get("meter_id"))
+        meter = service.get_meter(event.get("pathParameters", {}))
 
         return meter
 
@@ -97,8 +106,6 @@ def get_meter(
             "headers": {"content-type": "application/json"},
             "body": json.dumps({"error": "Internal Server Error", "message": str(e)}),
         }
-    finally:
-        session.close()
 
 
 def put_meter(
@@ -106,19 +113,16 @@ def put_meter(
 ) -> APIGatewayProxyResponseV2:
     """Update a meter entry partially or fully."""
     try:
-        session: Session = DBSession()
         service = MeterService(
-            session=session,
-            base_url=event.get("rawPath"),
-            headers=event.get("headers", {"accept", "application/json"}),
+            base_url=event["rawPath"],
+            headers=event.get("headers", {}),
+            query_params=event.get("queryStringParameters", {}),
         )
+        meter = MeterSchema(**json.loads(event.get("body", "")))
 
-        meter = service.update_meter(
-            meter_id=event.get("pathParameters").get("meter_id"),
-            meter_data=json.loads(event.get("body")),
-        )
+        updated_meter = service.update_meter(meter_data=meter.dict())
 
-        return meter
+        return updated_meter
     except BadRequestException as e:
         return {
             "statusCode": e.status_code,
@@ -127,14 +131,10 @@ def put_meter(
         }
 
     except Exception as e:
-        session.rollback()
         return {
             "statusCode": 500,
             "body": json.dumps({"error": "Internal Server Error", "message": str(e)}),
         }
-
-    finally:
-        session.close()
 
 
 def delete_meter(
@@ -142,15 +142,14 @@ def delete_meter(
 ) -> APIGatewayProxyResponseV2:
     """Update a meter entry partially or fully."""
     try:
-        session: Session = DBSession()
         service = MeterService(
-            session=session,
-            base_url=event.get("rawPath"),
-            headers=event.get("headers", {"accept", "application/json"}),
+            base_url=event["rawPath"],
+            headers=event.get("headers", {}),
+            query_params=event.get("queryStringParameters", {}),
         )
 
         service.delete_meter(
-            meter_id=event.get("pathParameters").get("meter_id"),
+            path_parameters=event.get("pathParameters", {}),
         )
 
         return {"statusCode": 204}
@@ -167,6 +166,3 @@ def delete_meter(
             "statusCode": 500,
             "body": json.dumps({"error": "Internal Server Error", "message": str(e)}),
         }
-
-    finally:
-        session.close()

@@ -1,14 +1,13 @@
-"""Class to hold custom exceptions."""
+"""Module to hold custom exceptions."""
 
 
 class APIException(Exception):
     """Base exception class for API errors."""
 
     status_code = 500
-    default_message = "An unexpected error occurred."
 
-    def __init__(self, message: str = None):
-        self.message = message or self.default_message
+    def __init__(self, message: str = "An unexpected error occurred."):
+        self.message = message
         super().__init__(self.message)
 
     def to_dict(self):

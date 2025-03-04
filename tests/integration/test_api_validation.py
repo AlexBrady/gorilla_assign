@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from metr import api
+from metr.api.views import post_meters
 from tests.factories import generate_api_gateway_proxy_event_v2
 
 
@@ -29,7 +29,7 @@ def test_post_meter_invalid_body(body_change, fresh_db, lambda_context):
     event = generate_api_gateway_proxy_event_v2(
         "POST", "/meters", body=json.dumps(base_body)
     )
-    resp = api.post_meters(event, lambda_context)
+    resp = post_meters(event, lambda_context)
 
     assert 400 <= resp["statusCode"] < 500
     assert "json" in resp["headers"]["content-type"]
@@ -51,7 +51,7 @@ def test_post_meter_duplicate_id(db_meters, lambda_context):
             }
         ),
     )
-    resp = api.post_meters(event, lambda_context)
+    resp = post_meters(event, lambda_context)
 
     assert 400 <= resp["statusCode"] < 500
     assert "json" in resp["headers"]["content-type"]
@@ -73,7 +73,7 @@ def test_post_meter_duplicate_ref(db_meters, lambda_context):
             }
         ),
     )
-    resp = api.post_meters(event, lambda_context)
+    resp = post_meters(event, lambda_context)
 
     assert 400 <= resp["statusCode"] < 500
     assert "json" in resp["headers"]["content-type"]

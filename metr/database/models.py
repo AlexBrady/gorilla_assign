@@ -4,7 +4,7 @@ from typing import Optional
 from sqlalchemy import String
 from sqlalchemy.orm import Mapped, mapped_column
 
-from metr.database import Base
+from metr.database.database import Base
 
 
 class Meter(Base):

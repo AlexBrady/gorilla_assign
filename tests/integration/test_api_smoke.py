@@ -5,12 +5,12 @@ import io
 import json
 import xml.etree.ElementTree as ET
 
-from metr.api.meters.views import (
-    delete_meter,
+from metr.api.views import (
     get_meter,
     get_meters,
     post_meters,
     put_meter,
+    delete_meter
 )
 from tests.factories import generate_api_gateway_proxy_event_v2
 
@@ -29,8 +29,7 @@ def test_get_meters_smoke_xml(db_meters, lambda_context):
         "GET", "/meters", headers={"accept": "application/xml"}
     )
     response = get_meters(event, lambda_context)
-
-    assert ET.fromstring(response)
+    assert ET.fromstring(response["body"])
 
 
 def test_get_meters_smoke_csv(db_meters, lambda_context):
@@ -111,7 +110,7 @@ def test_post_meters_smoke(fresh_db, lambda_context):
 
 
 def test_put_meter_smoke(db_meters, lambda_context):
-    meter_id = db_meters[0].meter_id
+    meter_id = db_meters[1].meter_id
 
     event = generate_api_gateway_proxy_event_v2(
         "PUT",

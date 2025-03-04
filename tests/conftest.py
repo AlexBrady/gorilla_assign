@@ -2,14 +2,14 @@ import pytest
 from aws_lambda_typing.context import Context
 from sqlalchemy import text
 
-from metr import database
+from metr.database import database
 from tests import factories
 
 
 @pytest.fixture(scope="session")
 def setup_db():
     # Ensure all models are in scope so `Base.metadata` is complete:
-    import metr.models  # noqa
+    import metr.database.models  # noqa
 
     database.configure_database()
     database.Base.metadata.create_all(bind=database.Session.kw["bind"])

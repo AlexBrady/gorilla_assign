@@ -2,13 +2,13 @@ install:
 	poetry install
 
 lint:
-	poetry run flake8
-	poetry run black --check --diff .
-	poetry run isort --check-only .
+	poetry run flake8 metr/ tests/
+	poetry run black --check --diff metr/ tests/
+	poetry run isort --check-only metr/ tests/
 
 format:
-	poetry run isort .
-	poetry run black .
+	poetry run isort metr/ tests/
+	poetry run black metr/ tests/
 
 test:
 	poetry run mypy -p metr -p tests

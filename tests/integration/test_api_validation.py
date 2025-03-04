@@ -2,7 +2,7 @@ import json
 
 import pytest
 
-from metr.api.views import post_meters
+from metr.api.meters.views import post_meters
 from tests.factories import generate_api_gateway_proxy_event_v2
 
 

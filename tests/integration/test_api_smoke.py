@@ -5,7 +5,7 @@ import io
 import json
 import xml.etree.ElementTree as ET
 
-from metr.api.views import (
+from metr.api.meters.views import (
     get_meter,
     get_meters,
     post_meters,

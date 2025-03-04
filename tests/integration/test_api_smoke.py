@@ -72,6 +72,7 @@ def test_get_meters_smoke_external_reference(db_meters, lambda_context):
     json_response = json.loads(response["body"])
     assert json_response["meters"][0]["external_reference"] == db_meters[0].external_reference
 
+# add more tests with each filter used....
 
 def test_get_meters_smoke_with_pagination(db_meters, lambda_context):
     event = generate_api_gateway_proxy_event_v2(

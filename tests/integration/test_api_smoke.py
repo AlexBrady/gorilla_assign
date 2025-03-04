@@ -45,7 +45,7 @@ def test_get_meters_smoke_csv(db_meters, lambda_context):
     assert "meter_id" in rows[0]
 
 
-def test_get_meters_smoke_with_filter(db_meters, lambda_context):
+def test_get_meters_smoke_enabled(db_meters, lambda_context):
     event = generate_api_gateway_proxy_event_v2(
         "GET", "/meters", query_string="enabled=true"
     )
@@ -60,7 +60,32 @@ def test_get_meters_smoke_with_filter(db_meters, lambda_context):
         assert entry["enabled"] is True
 
 
-# Add pagination test with offset, limit, hyperlink actually works
+def test_get_meters_smoke_external_reference(db_meters, lambda_context):
+    event = generate_api_gateway_proxy_event_v2(
+        "GET", "/meters", query_string=f"external_reference={db_meters[0].external_reference}"
+    )
+    response = get_meters(event, lambda_context)
+
+    assert 200 <= response["statusCode"] < 300
+    assert "json" in response["headers"]["content-type"]
+
+    json_response = json.loads(response["body"])
+    assert json_response["meters"][0]["external_reference"] == db_meters[0].external_reference
+
+
+def test_get_meters_smoke_with_pagination(db_meters, lambda_context):
+    event = generate_api_gateway_proxy_event_v2(
+        "GET", "/meters", query_string="page=5&page_size=10"
+        )
+    response = get_meters(event, lambda_context)
+
+    assert 200 <= response["statusCode"] < 300
+    assert "json" in response["headers"]["content-type"]
+    json_response = json.loads(response["body"])
+
+    assert json_response["page"] == 5
+    assert json_response["page_size"] == 10
+    assert json_response["next_page"] == "/meters?page=6&page_size=10"
 
 
 def test_get_meter_smoke(db_meters, lambda_context):

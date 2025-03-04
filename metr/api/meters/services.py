@@ -142,14 +142,18 @@ class MeterService:
         Get a list of meters.
         """
         meters = self.meter_persistor.get_meters(**self.query_params)
-        meters_count = self.meter_persistor.count_meters(**self.query_params)
+        count_params = {k:v for k,v in self.query_params.items() if k not in ("page", "page_size")}
+        meters_count = self.meter_persistor.count_meters(**count_params)
+
+        page, page_size = int(self.query_params.get("page", 1)), int(self.query_params.get("page_size", 20))
         next_page = self._assign_next_page_hyperlink(
-            page=self.query_params.get("page", 1),
-            page_size=self.query_params.get("page_size", 20),
+            page=page,
+            page_size=page_size,
             meters_count=meters_count,
         )
-
         body = {
+            "page": page,
+            "page_size": page_size,
             "total": meters_count,
             "meters": [meter.as_dict() for meter in meters],
             "next_page": next_page,

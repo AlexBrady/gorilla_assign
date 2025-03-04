@@ -16,5 +16,5 @@ class MeterSchema(BaseModel):
     enabled: bool = True
     annual_quantity: float = Field(gt=0)
 
-    class Config:
+    class ConfigDict:
         from_attributes = True
